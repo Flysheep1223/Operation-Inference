@@ -1,0 +1,394 @@
+:- dynamic wall/2, location/3, game_over/0, health/1, chaser/3.
+:- use_module(library(readutil)).
+:- use_module(library(pcre)).
+
+map_size(60, 34).
+exit_pos(50, 32).
+
+health_zone(46, 14, 56, 20).
+health_zone(6, 26, 16, 32).
+
+map_segment([22, 4], [22, 6]).
+map_segment([22, 6], [38, 6]).
+map_segment([38, 6], [38, 4]).
+map_segment([24, 14], [24, 10]).
+map_segment([24, 10], [28, 10]).
+map_segment([32, 10], [36, 10]).
+map_segment([36, 10], [36, 14]).
+map_segment([36, 18], [36, 22]).
+map_segment([36, 22], [24, 22]).
+map_segment([24, 22], [24, 18]).
+map_segment([44, 4], [44, 8]).
+map_segment([48, 2], [48, 8]).
+map_segment([52, 2], [52, 8]).
+map_segment([56, 2], [56, 8]).
+map_segment([16, 12], [4, 12]).
+map_segment([4, 12], [4, 4]).
+map_segment([4, 4], [16, 4]).
+map_segment([16, 4], [16, 12]).
+map_segment([4, 22], [18, 22]).
+map_segment([18, 22], [18, 16]).
+map_segment([18, 16], [4, 16]).
+map_segment([4, 16], [4, 22]).
+map_segment([32, 26], [36, 26]).
+map_segment([36, 26], [36, 30]).
+map_segment([28, 26], [24, 26]).
+map_segment([24, 26], [24, 34]).
+map_segment([56, 34], [56, 30]).
+map_segment([56, 30], [50, 30]).
+map_segment([50, 30], [50, 26]).
+map_segment([50, 26], [60, 26]).
+map_segment([0, 0], [0, 34]).
+map_segment([0, 34], [60, 34]).
+map_segment([60, 34], [60, 0]).
+map_segment([60, 0], [0, 0]).
+
+fill_horizontal_line(X1, Y, X2) :-
+    min_max(X1, X2, X_Min, X_Max),
+    between(X_Min, X_Max, X),
+    assertz(wall(X, Y)),
+    fail.
+fill_horizontal_line(_, _, _).
+
+fill_vertical_line(X, Y1, Y2) :-
+    min_max(Y1, Y2, Y_Min, Y_Max),
+    between(Y_Min, Y_Max, Y),
+    assertz(wall(X, Y)),
+    fail.
+fill_vertical_line(_, _, _).
+
+min_max(A, B, Min, Max) :-
+    (A =< B -> Min = A, Max = B ; Min = B, Max = A).
+
+generate_walls :-
+    retractall(wall(_, _)),
+    map_segment([X1, Y1], [X2, Y2]),
+    (   Y1 = Y2 -> fill_horizontal_line(X1, Y1, X2)
+    ;   X1 = X2 -> fill_vertical_line(X1, Y1, Y2)
+    ;   true
+    ),
+    fail.
+generate_walls :-
+    format('~nWall generation complete.~n').
+
+show_map :-
+    (   location(player, PlayerX, PlayerY), health(H)
+    ->  format('~n[HEALTH: ~w]~n', [H]),
+        draw_map(PlayerX, PlayerY)
+    ;   format('~nERROR: Player position is not set. Run "start."~n')
+    ).
+
+start :-
+    generate_walls,
+    retractall(game_over),
+    retractall(location(player, _, _)),
+    retractall(health(_)),
+    assert(health(100)),
+    assert(location(player, 30, 2)),
+    init_chaser,
+    format('~nGame started. Player spawned at (30, 2).~n'),
+    format('Initial Health: 100~n'),
+    format('Your Exit is at (50, 32), marked by "$".~n'),
+    format('Recovery Zones are marked by H.~n'),
+    format('Commands: move(up/down/left/right). Use tp(X, Y) to jump.~n'),
+    show_map.
+
+is_wall(X, Y) :- wall(X, Y).
+
+get_health_zone_char(X, Y, Char) :-
+    health_zone(X_Min, Y_Min, X_Max, Y_Max),
+    X >= X_Min, X =< X_Max,
+    Y >= Y_Min, Y =< Y_Max,
+    Char = 'H',
+    !.
+
+print_map_char(X, Y, X, Y) :-
+    format('@'), !.
+
+print_map_char(X, Y, _, _) :-
+    exit_pos(X, Y),
+    format('$'), !.
+
+print_map_char(X, Y, _, _) :-
+    get_health_zone_char(X, Y, Char),
+    format('~w', [Char]),
+    !.
+
+print_map_char(X, Y, _, _) :-
+    wall(X, Y),
+    (   (is_wall(X, Y+1); is_wall(X, Y-1)),
+        \+ (is_wall(X+1, Y); is_wall(X-1, Y)) -> format('|')
+    ;   (is_wall(X+1, Y); is_wall(X-1, Y)),
+        \+ (is_wall(X, Y+1); is_wall(X, Y-1)) -> format('-')
+    ;   format('+')
+    ), !.
+
+print_map_char(_, _, _, _) :-
+    format('.'), !.
+
+draw_map(PlayerX, PlayerY) :-
+    map_size(MaxX, MaxY),
+    format('~n+--- Map (Current Position: @) ---+~n'),
+    between(0, MaxY, Y_index),
+    Y is MaxY - Y_index,
+    between(0, MaxX, X),
+    print_map_char(X, Y, PlayerX, PlayerY),
+    (   X = MaxX -> format('~n')
+    ;   true
+    ),
+    fail.
+draw_map(_, _) :-
+    format('+----------------------------------+~n').
+
+ask_restart :-
+    format('Would you like to restart the game or exit? (R/E): '),
+    read_line_to_string(user_input, ChoiceRaw),
+    (   ChoiceRaw = "" ->
+            read_line_to_string(user_input, Choice)
+    ;   Choice = ChoiceRaw
+    ),
+    normalize_choice(Choice, Normalized),
+    handle_choice(Normalized),
+    !.
+
+normalize_choice(C, N) :-
+    string_lower(C, L),
+    (L = "r" -> N = r ; L = "e" -> N = e ; N = invalid).
+
+handle_choice(r) :-
+    format('\n--- Performing Full Game Restart ---\n\n'),
+    start,
+    !.
+
+handle_choice(e) :-
+    format('\nThank you for playing! Goodbye.\n'),
+    halt.
+
+handle_choice(_) :-
+    format('Invalid choice. Please enter R or E.\n'),
+    ask_restart.
+
+decrease_health :-
+    health(H),
+    H > 0,
+    H_New is H - 1,
+    retract(health(H)),
+    assert(health(H_New)),
+    (H_New = 0 -> end_game_low_health ; true).
+
+end_game_low_health :-
+    \+ game_over,
+    format('~n!!! HEALTH DEPLETED !!!~n'),
+    format('*** GAME OVER: Your health reached 0. ***~n'),
+    end_game.
+
+restore_health :-
+    location(player, X, Y),
+    health_zone(X_Min, Y_Min, X_Max, Y_Max),
+    X >= X_Min, X =< X_Max,
+    Y >= Y_Min, Y =< Y_Max,
+    !,
+    health(H),
+    H_Max = 100,
+    Recovery = 5,
+    H_Candidate is H + Recovery,
+    (H_Candidate > H_Max -> H_New = H_Max ; H_New = H_Candidate),
+    (H_New > H ->
+        retract(health(H)),
+        assert(health(H_New)),
+        format('~n[Recovery!] +5 HP (Current: ~w/~w)~n', [H_New, H_Max])
+    ;
+        true
+    ).
+restore_health.
+
+update_location(NewX, NewY) :-
+    \+ wall(NewX, NewY),
+    retract(location(player, _, _)),
+    assert(location(player, NewX, NewY)),
+    restore_health,
+    check_exit(NewX, NewY),
+    !.
+update_location(_, _) :-
+    fail.
+
+move(_) :-
+    game_over,
+    !,
+    format('~n!!! Game Over! You cannot move further. !!!~n'),
+    fail.
+
+move(Direction) :-
+    location(player, X, Y),
+    map_size(MaxX, MaxY),
+    (   Direction = up,     Y1 is Y + 1, Y1 =< MaxY, update_location(X, Y1)
+    ;   Direction = down,   Y1 is Y - 1, Y1 >= 0, update_location(X, Y1)
+    ;   Direction = left,   X1 is X - 1, X1 >= 0, update_location(X1, Y)
+    ;   Direction = right,  X1 is X + 1, X1 =< MaxX, update_location(X1, Y)
+    ),
+    location(player, NewX, NewY),
+    format('~nYou moved to (~w, ~w).~n', [NewX, NewY]),
+    show_map,
+    chaser_tick,
+    !.
+
+move(_) :-
+    format('~nCannot move in that direction (Invalid direction, blocked, or out of bounds)!~n'),
+    show_map.
+
+tp(_, _) :-
+    game_over,
+    !,
+    format('~n!!! Game Over! Cannot teleport. !!!~n'),
+    fail.
+
+tp(NewX, NewY) :-
+    map_size(MaxX, MaxY),
+    NewX >= 0, NewX =< MaxX,
+    NewY >= 0, NewY =< MaxY,
+    update_location(NewX, NewY),
+    format('~n--- TELEPORT SUCCESSFUL ---~n'),
+    location(player, NewX_Actual, NewY_Actual),
+    format('You are now at (~w, ~w).~n', [NewX_Actual, NewY_Actual]),
+    show_map,
+    chaser_tick,
+    !.
+
+tp(NewX, NewY) :-
+    format('~n--- TELEPORT FAILED ---~n'),
+    format('Target (~w, ~w) is outside boundaries or occupied by a wall.~n', [NewX, NewY]),
+    show_map.
+
+check_exit(X, Y) :-
+    exit_pos(X, Y),
+    \+ game_over,
+    format('~n**************************************************~n'),
+    format('*** CONGRATULATIONS! You found the exit at (~w, ~w)! ***~n', [X, Y]),
+    format('**************************************************~n'),
+    end_game.
+
+check_exit(_, _) :-
+    true.
+
+end_game :-
+    \+ game_over,
+    ask_restart.
+
+init_chaser :-
+    retractall(chaser(_,_,_)),
+    assertz(chaser(chaser1, 10, 2)).
+
+write_problem(File, PX, PY, EX, EY, Walls) :-
+    open(File, write, S),
+
+    write(S, "(define (problem chase-problem)\n"),
+    write(S, "  (:domain chase)\n"),
+    write(S, "  (:objects\n"),
+
+    % generate full grid objects
+    forall(
+        (between(0, 60, X), between(0, 34, Y)),
+        (format(S, "    loc-~w-~w - location\n", [X, Y]))
+    ),
+
+    write(S, "  )\n"),
+    write(S, "  (:init\n"),
+
+    % enemy position
+    format(S, "    (at chaser1 loc-~w-~w)\n", [EX, EY]),
+
+    % player position
+    format(S, "    (player-at loc-~w-~w)\n", [PX, PY]),
+
+    % adjacency (4-neighbor)
+    forall(
+        (between(0,60,X), between(0,34,Y),
+         neighbor(X,Y,X2,Y2),
+         \+ member((X2,Y2), Walls), \+ member((X,Y), Walls)),
+        (
+            format(S, "    (adj loc-~w-~w loc-~w-~w)\n",
+                [X,Y,X2,Y2])
+        )
+    ),
+
+    write(S, "  )\n"),
+    write(S, "  (:goal (captured chaser1))\n"),
+    write(S, ")\n"),
+
+    close(S).
+
+neighbor(X,Y, NX,Y) :- NX is X+1.
+neighbor(X,Y, NX,Y) :- NX is X-1.
+neighbor(X,Y, X,NY) :- NY is Y+1.
+neighbor(X,Y, X,NY) :- NY is Y-1.
+
+
+call_planner_and_write_plan(Cmd) :-
+    shell(Cmd).
+
+read_plan_file_first_action(File, Action) :-
+    (   exists_file(File)
+    ->  read_file_to_string(File, Str, []),
+        re_replace('\\(|\\)', '', Str, StrNoParens, [global]),
+        split_string(StrNoParens, "\n", " \t", Lines),
+        exclude(=( ""), Lines, CleanLines),
+        find_first_action(CleanLines, Action)
+    ;   Action = none
+    ).
+
+find_first_action([], none).
+find_first_action([L|_], Action) :-
+    string_lower(L, Llow),
+    (   sub_string(Llow, 0, _, _, "move ")
+    ->  split_string(L, " ", " ", Tokens),
+        Tokens = [_Move, Agent, From, To | _],
+        parse_loc_string(From, FX, FY),
+        parse_loc_string(To, TX, TY),
+        Action = move(Agent, FX-FY, TX-TY)
+    ;   sub_string(Llow, 0, _, _, "capture ")
+    ->  split_string(L, " ", " ", Tokens),
+        Tokens = [_Capture, Agent, Loc | _],
+        parse_loc_string(Loc, LX, LY),
+        Action = capture(Agent, LX-LY)
+    ;   find_first_action([], none)
+    ).
+
+parse_loc_string(Str, X, Y) :-
+    split_string(Str, "-", "", Parts),
+    Parts = [_Loc, XS, YS],
+    number_string(X, XS),
+    number_string(Y, YS).
+
+do_action(move(_, FromX-FromY, ToX-ToY)) :-
+    (   chaser(Name, FromX, FromY)
+    ->  retract(chaser(Name, FromX, FromY)),
+        assertz(chaser(Name, ToX, ToY)),
+        format('~nChaser moved to (~w, ~w).~n', [ToX, ToY]),
+        show_map
+    ;   chaser(Name, _, _)
+    ->  retract(chaser(Name, _, _)),
+        assertz(chaser(Name, ToX, ToY)),
+        format('~nChaser moved to (~w, ~w).~n', [ToX, ToY]),
+        show_map
+    ;   true
+    ).
+
+do_action(capture(_, X-Y)) :-
+    location(player, PX, PY),
+    PX =:= X, PY =:= Y,
+    format('~n*** Chaser captured the player at (~w, ~w) ***~n', [X, Y]),
+    assertz(game_over),
+    end_game.
+do_action(capture(_, _, _)).
+
+chaser_tick :-
+    write_problem_pddl('problem_chase.pddl'),
+    call_planner_and_write_plan('pyperplan domain_chase.pddl problem_chase.pddl > plan.txt'),
+    read_plan_file_first_action('plan.txt', Action),
+    (   Action = move(_, _, _) -> do_action(Action)
+    ;   Action = capture(_, _) -> do_action(Action)
+    ;   true
+    ).
+
+start_with_chaser :-
+    start.
