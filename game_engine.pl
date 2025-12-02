@@ -252,16 +252,15 @@ draw_map(_, _) :-
     format('+----------------------------------+~n').
 
 start_game :-
-    load_level('safehouse.pl'),
+    load_level('level1.pl'),
     retractall(game_over),
     retractall(location(player, _, _)),
     retractall(health(_)),
     assert(health(100)),
     (   spawn_pos(SX, SY) -> assert(location(player, SX, SY))
-    ;   assert(location(player, 10, 10))
+    ;   assert(location(player, 30, 2))
     ),
-    format('~nWelcome back home!~n'),
-    format('Rest up, then head to the door (O) to start your adventure.~n'),
+    format('~nGame started!~n'),
     format('Controls: WASD to move, Q to quit.~n'),
     show_map,
     game_loop.

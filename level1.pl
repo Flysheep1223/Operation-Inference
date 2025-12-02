@@ -1,6 +1,6 @@
 map_size(60, 34).
 exit_pos(50, 32).
-spawn_pos(10, 2). % 玩家进入冒险地图的初始位置
+spawn_pos(30, 2). % 玩家进入冒险地图的初始位置
 
 % 回到安全屋的门 (可选)
 % portal_pos(10, 0, 'safehouse.pl'). 
