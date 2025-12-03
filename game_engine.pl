@@ -1,4 +1,4 @@
-:- dynamic wall/2, location/3, game_over/0, health/1, player_atk/1.
+:- dynamic wall/2, location/3, game_over/0, health/1, player_atk/1, turn_count/1, scaling_level/1.
 :- dynamic map_size/2, exit_pos/2, health_zone/4, map_segment/2, spawn_pos/2, portal_pos/3.
 :- dynamic equipment/4.
 :- use_module(library(readutil)).
@@ -9,6 +9,7 @@
 :- [items/equipments/sword].
 :- [items/equipments/knife].
 :- [item_manager].
+:- [scaling_manager].
 
 % --- Map Loading Logic ---
 load_level(LevelFile) :-
@@ -61,6 +62,7 @@ update_location(NewX, NewY) :-
     check_events(NewX, NewY),
     check_items(NewX, NewY),
     check_combat,
+    check_scaling,
     !.
 update_location(_, _) :-
     fail.
@@ -284,7 +286,9 @@ print_map_char(_, _, _, _) :-
 
 draw_map(PlayerX, PlayerY) :-
     map_size(MaxX, MaxY),
-    format('~n+--- Map (Current Position: @) ---+~n'),
+    turn_count(Turn),
+    scaling_level(Lvl),
+    format('~n+--- Map (Current Position: @) [Turn: ~w] [Enemy Lv: ~w] ---+~n', [Turn, Lvl]),
     between(0, MaxY, Y_index),
     Y is MaxY - Y_index,
     between(0, MaxX, X),
@@ -303,8 +307,12 @@ start_game :-
     retractall(health(_)),
     retractall(player_atk(_)),
     retractall(equipment(_,_,_,_)),
+    retractall(turn_count(_)),
+    retractall(scaling_level(_)),
     assert(health(100)),
     assert(player_atk(10)),
+    assert(turn_count(0)),
+    assert(scaling_level(0)),
     (   spawn_pos(SX, SY) -> assert(location(player, SX, SY))
     ;   assert(location(player, 30, 2))
     ),
