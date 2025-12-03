@@ -1,4 +1,5 @@
 :- dynamic chaser/3.
+:- use_module(ai_utils).
 
 % Initialize chaser
 init_chaser(X, Y) :-
@@ -69,14 +70,3 @@ bfs([CurrentPath|Queue], Goal, Visited, FinalPath) :-
 extract_heads([], []).
 extract_heads([[Head|_]|Tail], [Head|Heads]) :-
     extract_heads(Tail, Heads).
-
-neighbor([X, Y], [NX, NY]) :-
-    ( NX is X + 1, NY = Y
-    ; NX is X - 1, NY = Y
-    ; NX = X, NY is Y + 1
-    ; NX = X, NY is Y - 1
-    ),
-    map_size(MaxX, MaxY),
-    NX >= 0, NX =< MaxX, NY >= 0, NY =< MaxY.
-
-wall_check([X, Y]) :- wall(X, Y).

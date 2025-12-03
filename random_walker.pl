@@ -1,4 +1,5 @@
 :- dynamic random_walker/5.
+:- use_module(ai_utils).
 
 % Initialize random walker
 init_random_walker(X, Y) :-
@@ -61,25 +62,3 @@ check_walker_capture(X, Y) :-
     ).
 
 is_pos(X, Y, [X, Y]).
-
-in_bounds(X, Y) :-
-    map_size(MaxX, MaxY),
-    X >= 0, X =< MaxX, 
-    Y >= 0, Y =< MaxY.
-
-% Shared predicates used here (ensure they are available or redefined)
-% neighbor/2 and wall_check/1 are also in bfs_chaser.pl. 
-% Since Prolog modules share the global database for dynamic predicates like wall/2, 
-% we can rely on the game engine or redefine helpers locally.
-% For safety, we redefine local helpers here to keep the file self-contained or rely on game_engine loading.
-
-neighbor([X, Y], [NX, NY]) :-
-    ( NX is X + 1, NY = Y
-    ; NX is X - 1, NY = Y
-    ; NX = X, NY is Y + 1
-    ; NX = X, NY is Y - 1
-    ),
-    map_size(MaxX, MaxY),
-    NX >= 0, NX =< MaxX, NY >= 0, NY =< MaxY.
-
-wall_check([X, Y]) :- wall(X, Y).
