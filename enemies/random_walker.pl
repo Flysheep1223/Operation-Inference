@@ -21,7 +21,7 @@ random_walker_tick :-
     MomX is X + LastDx, 
     MomY is Y + LastDy,
     (   (LastDx \= 0 ; LastDy \= 0),
-        maybe(0.8),
+        maybe(0.5),
         in_bounds(MomX, MomY),
         \+ wall_check([MomX, MomY])
     ->  NewX = MomX, NewY = MomY, NewDx = LastDx, NewDy = LastDy
