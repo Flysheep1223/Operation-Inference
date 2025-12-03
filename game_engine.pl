@@ -1,9 +1,9 @@
 :- dynamic wall/2, location/3, game_over/0, health/1.
 :- dynamic map_size/2, exit_pos/2, health_zone/4, map_segment/2, spawn_pos/2, portal_pos/3.
 :- use_module(library(readutil)).
-:- [ai_manager].
-:- [bfs_chaser].
-:- [random_walker].
+:- [enemies/ai_manager].
+:- [enemies/bfs_chaser].
+:- [enemies/random_walker].
 
 % --- Map Loading Logic ---
 load_level(LevelFile) :-
@@ -14,7 +14,8 @@ load_level(LevelFile) :-
     retractall(map_segment(_, _)),
     retractall(spawn_pos(_, _)),
     retractall(portal_pos(_, _, _)),
-    consult(LevelFile),
+    atom_concat('maps/', LevelFile, Path),
+    consult(Path),
     generate_walls.
 
 generate_walls :-
