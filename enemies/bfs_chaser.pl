@@ -1,43 +1,39 @@
-:- dynamic chaser/3.
+:- dynamic chaser/5.
 :- use_module(ai_utils).
 
 % Initialize chaser
 init_chaser(X, Y) :-
-    retractall(chaser(_,_,_)),
-    assertz(chaser(chaser1, X, Y)).
+    retractall(chaser(_,_,_,_,_)),
+    assertz(chaser(chaser1, X, Y, 10, 0)).
 
 % Chaser Logic
 chaser_tick :-
     current_predicate(game_over/0), game_over, !.
 chaser_tick :-
-    \+ chaser(_, _, _), !.
+    \+ chaser(_, _, _, _, _), !.
 chaser_tick :-
-    chaser(Name, CX, CY),
-    location(player, PX, PY),
-    
-    (   CX =:= PX, CY =:= PY
-    ->  handle_capture
-    ;   % Run BFS
-        (   solve_bfs([CX, CY], [PX, PY], Path)
-        ->  Path = [_, [NextX, NextY] | _], % First element is Start, second is Next
-            move_chaser(Name, NextX, NextY),
-            (   NextX =:= PX, NextY =:= PY
-            ->  handle_capture
-            ;   true
+    chaser(Name, CX, CY, Atk, Stun),
+    (   Stun > 0
+    ->  NewStun is Stun - 1,
+        retract(chaser(Name, CX, CY, Atk, Stun)),
+        assertz(chaser(Name, CX, CY, Atk, NewStun)),
+        format('~n[Enemy] ~w is stunned for ~w more turns.~n', [Name, NewStun])
+    ;   location(player, PX, PY),
+        (   CX =:= PX, CY =:= PY
+        ->  true % Already on top of player, combat logic handles this
+        ;   % Run BFS
+            (   solve_bfs([CX, CY], [PX, PY], Path)
+            ->  Path = [_, [NextX, NextY] | _], % First element is Start, second is Next
+                move_chaser(Name, NextX, NextY, Atk, Stun)
+            ;   format('~n[BFS] Chaser blocked or cannot find path.~n')
             )
-        ;   format('~n[BFS] Chaser blocked or cannot find path.~n')
         )
     ).
 
-move_chaser(Name, X, Y) :-
-    retract(chaser(Name, _, _)),
-    assertz(chaser(Name, X, Y)),
+move_chaser(Name, X, Y, Atk, Stun) :-
+    retract(chaser(Name, _, _, _, _)),
+    assertz(chaser(Name, X, Y, Atk, Stun)),
     format('~n[BFS] Chaser moved to (~w, ~w).~n', [X, Y]).
-
-handle_capture :-
-    format('~n*** Chaser caught you! GAME OVER ***~n'),
-    assert(game_over),
-    end_game.
 
 % --- BFS Implementation ---
 
