@@ -54,6 +54,14 @@ update_location(NewX, NewY) :-
         !
     ;   true
     ),
+    % Check if player walked into Random Walker
+    (   random_walker(_, RX, RY, _, _), RX =:= NewX, RY =:= NewY
+    ->  format('~n*** You walked right into the Random Walker! GAME OVER! ***~n'),
+        assert(game_over),
+        end_game,
+        !
+    ;   true
+    ),
     % Move logic first to allow stepping ONTO the portal
     retract(location(player, _, _)),
     assert(location(player, NewX, NewY)),
@@ -195,13 +203,13 @@ move(Direction) :-
     location(player, NewX, NewY),
     format('~nYou moved to (~w, ~w).~n', [NewX, NewY]),
     show_map,
-    chaser_tick,
+    enemies_tick,
     !.
 
 move(_) :-
     format('~nCannot move in that direction (Invalid direction, blocked, or out of bounds)!~n'),
     show_map,
-    chaser_tick.
+    enemies_tick.
 
 % --- Teleport (Debug/Cheat) ---
 tp(NewX, NewY) :-
@@ -213,7 +221,7 @@ tp(NewX, NewY) :-
     location(player, NewX_Actual, NewY_Actual),
     format('You are now at (~w, ~w).~n', [NewX_Actual, NewY_Actual]),
     show_map,
-    chaser_tick,
+    enemies_tick,
     !.
 
 tp(NewX, NewY) :-
@@ -256,6 +264,12 @@ print_map_char(X, Y, _, _) :-
     format('C'), !.  % 'C' marks the Chaser
 
 print_map_char(X, Y, _, _) :-
+    random_walker(_, RX, RY, _, _),
+    number(RX), number(RY),
+    RX =:= X, RY =:= Y,
+    format('R'), !.  % 'R' marks the Random Walker
+
+print_map_char(X, Y, _, _) :-
     get_health_zone_char(X, Y, Char),
     format('~w', [Char]),
     !.
@@ -296,7 +310,7 @@ start_game :-
     ;   assert(location(player, 30, 2))
     ),
     format('~nGame started!~n'),
-    init_chaser(10, 2), % Generate chaser at (10, 2)
+    init_enemies, % Generate enemies
     format('Controls: WASD to move, Q to quit.~n'),
     show_map,
     game_loop.

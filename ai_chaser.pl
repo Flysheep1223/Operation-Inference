@@ -1,11 +1,86 @@
-:- dynamic chaser/3.
+:- dynamic chaser/3, random_walker/5.
 
-% Initialize chaser
+% Initialize enemies
+init_enemies :-
+    init_chaser(10, 2),
+    init_random_walker(40, 10).
+
 init_chaser(X, Y) :-
     retractall(chaser(_,_,_)),
     assertz(chaser(chaser1, X, Y)).
 
-% Chaser tick logic
+init_random_walker(X, Y) :-
+    retractall(random_walker(_,_,_,_,_)),
+    % Start with a random initial direction
+    random_member([Dx, Dy], [[0,1], [0,-1], [1,0], [-1,0]]),
+    assertz(random_walker(walker1, X, Y, Dx, Dy)).
+
+% Global tick for all enemies
+enemies_tick :-
+    chaser_tick,
+    random_walker_tick.
+
+% --- Random Walker Logic ---
+random_walker_tick :-
+    current_predicate(game_over/0), game_over, !.
+random_walker_tick :-
+    \+ random_walker(_, _, _, _, _), !.
+
+random_walker_tick :-
+    random_walker(Name, X, Y, LastDx, LastDy),
+    
+    % 1. Try to maintain momentum (80% chance)
+    MomX is X + LastDx, 
+    MomY is Y + LastDy,
+    (   (LastDx \= 0 ; LastDy \= 0),
+        maybe(0.6),
+        in_bounds(MomX, MomY),
+        \+ wall_check([MomX, MomY])
+    ->  NewX = MomX, NewY = MomY, NewDx = LastDx, NewDy = LastDy
+    ;   % 2. If blocked or change direction: pick new valid move
+        findall([NX, NY], (neighbor([X, Y], [NX, NY]), \+ wall_check([NX, NY])), AllNeighbors),
+        
+        % Filter out the tile we just came from to avoid jitter (Right-Left-Right),
+        % unless it is a dead end.
+        BackX is X - LastDx, BackY is Y - LastDy,
+        exclude(is_pos(BackX, BackY), AllNeighbors, ForwardNeighbors),
+        
+        (   ForwardNeighbors \= [] -> Candidates = ForwardNeighbors
+        ;   Candidates = AllNeighbors
+        ),
+        
+        (   Candidates \= []
+        ->  random_member([NewX, NewY], Candidates),
+            NewDx is NewX - X,
+            NewDy is NewY - Y
+        ;   % Completely stuck
+            NewX = X, NewY = Y, NewDx = LastDx, NewDy = LastDy
+        )
+    ),
+    
+    retract(random_walker(Name, _, _, _, _)),
+    assertz(random_walker(Name, NewX, NewY, NewDx, NewDy)),
+    
+    % Check collision with player
+    check_walker_capture(NewX, NewY).
+
+check_walker_capture(X, Y) :-
+    location(player, PX, PY),
+    (   X =:= PX, Y =:= PY
+    ->  format('~n*** You were bumped by the Random Walker! GAME OVER ***~n'),
+        assert(game_over),
+        end_game
+    ;   true
+    ).
+
+is_pos(X, Y, [X, Y]).
+
+in_bounds(X, Y) :-
+    map_size(MaxX, MaxY),
+    X >= 0, X =< MaxX, 
+    Y >= 0, Y =< MaxY.
+
+% --- Chaser Logic ---
 chaser_tick :-
     current_predicate(game_over/0), game_over, !.
 chaser_tick :-
@@ -14,9 +89,6 @@ chaser_tick :-
     chaser(Name, CX, CY),
     location(player, PX, PY),
     
-    % Debug info
-    % format('~n[DEBUG] Chaser at (~w, ~w), Player at (~w, ~w)~n', [CX, CY, PX, PY]),
-
     (   CX =:= PX, CY =:= PY
     ->  handle_capture
     ;   % Run BFS
