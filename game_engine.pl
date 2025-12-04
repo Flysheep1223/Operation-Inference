@@ -10,6 +10,7 @@
 :- [combat_logic].
 :- [items/equipments/sword].
 :- [items/equipments/knife].
+:- [items/tools/heathy_package].
 :- [items/item_manager].
 :- [scaling_manager].
 
@@ -22,9 +23,20 @@ load_level(LevelFile) :-
     retractall(map_segment(_, _)),
     retractall(spawn_pos(_, _)),
     retractall(portal_pos(_, _, _)),
+    retractall(healthy_package(_, _)), % Clear old packages
     atom_concat('maps/', LevelFile, Path),
     consult(Path),
-    generate_walls.
+    generate_walls,
+    init_healthy_packages. % Spawn new packages from map data
+
+init_healthy_packages :-
+    findall([X, Y], health_zone(X, Y, _, _), Zones),
+    spawn_packages_from_zones(Zones).
+
+spawn_packages_from_zones([]).
+spawn_packages_from_zones([[X, Y] | Rest]) :-
+    spawn_healthy_package(X, Y),
+    spawn_packages_from_zones(Rest).
 
 generate_walls :-
     retractall(wall(_, _)),
@@ -54,18 +66,27 @@ fill_vertical_line(_, _, _).
 min_max(A, B, Min, Max) :-
     (A =< B -> Min = A, Max = B ; Min = B, Max = A).
 
+:- discontiguous update_location/2.
+
 % --- Game Logic ---
 update_location(NewX, NewY) :-
     \+ wall(NewX, NewY),
     % Move logic first to allow stepping ONTO the portal
     retract(location(player, _, _)),
     assert(location(player, NewX, NewY)),
-    restore_health,
+    % restore_health, % Removed old continuous health zone logic
+    check_healthy_package(NewX, NewY), % Check for one-time package
     check_events(NewX, NewY),
     check_items(NewX, NewY),
     check_combat,
     check_scaling,
     !.
+
+check_healthy_package(X, Y) :-
+    healthy_package(X, Y),
+    !,
+    pickup_healthy_package(X, Y).
+check_healthy_package(_, _).
 update_location(_, _) :-
     fail.
 
@@ -236,8 +257,9 @@ print_map_char(X, Y, _, _) :-
     (Type = sword -> format(' S') ; format(' K')), !.
 
 print_map_char(X, Y, _, _) :-
-    get_health_zone_char(X, Y, Char),
-    format('~w', [Char]), !.
+    healthy_package(HX, HY),
+    HX =:= X, HY =:= Y,
+    format(' H'), !.
 
 print_map_char(X, Y, _, _) :-
     wall(X, Y),
@@ -253,7 +275,7 @@ print_map_char(_, _, _, _) :-
 
 is_wall(X, Y) :- wall(X, Y).
 
-get_health_zone_char(X, Y, ' H') :- health_zone(X, Y, _, _).
+get_health_zone_char(_, _, _) :- fail.
 
 % --- Main Loop ---
 start_game :-
@@ -266,7 +288,7 @@ start_game :-
     retractall(turn_count(_)),
     retractall(scaling_level(_)),
     assert(health(100)),
-    assert(player_atk(100)),
+    assert(player_atk(10)),
     assert(turn_count(0)),
     assert(scaling_level(0)),
     (   spawn_pos(SX, SY) -> assert(location(player, SX, SY))
