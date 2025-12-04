@@ -280,7 +280,7 @@ game_loop :-
     game_loop.
 
 get_action(Input) :-
-    format('~nAction: '),
+    % format('~nAction: '),
     get_single_char(Code),
     char_code(Input, Code),
     format('~w~n', [Input]).
