@@ -1,8 +1,8 @@
-:- dynamic chaser/3, random_walker/5, hidden_bee/5, timid_watched/5.
+:- dynamic chaser/6, random_walker/7, hidden_bee/6, timid_watched/5.
 
 % Initialize enemies
 init_enemies :-
-    init_chaser(10, 2),
+    init_chaser,
     init_random_walker, % No parameters needed now
     init_hidden_bee,
     init_timid_watched.
