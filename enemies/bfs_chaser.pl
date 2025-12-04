@@ -1,38 +1,55 @@
-:- dynamic chaser/5.
+:- dynamic chaser/6. % chaser(Name, X, Y, Atk, Stun, Active)
 :- use_module(ai_utils).
 
-% Initialize chaser
-init_chaser(X, Y) :-
-    retractall(chaser(_,_,_,_,_)),
-    assertz(chaser(chaser1, X, Y, 10, 0)).
+% Initialize chaser at [10, 8] and inactive (0)
+init_chaser :-
+    retractall(chaser(_,_,_,_,_,_)),
+    assertz(chaser(chaser1, 10, 8, 10, 0, 0)).
 
 % Chaser Logic
 chaser_tick :-
     current_predicate(game_over/0), game_over, !.
 chaser_tick :-
-    \+ chaser(_, _, _, _, _), !.
+    \+ chaser(_, _, _, _, _, _), !.
 chaser_tick :-
-    chaser(Name, CX, CY, Atk, Stun),
-    (   Stun > 0
-    ->  NewStun is Stun - 1,
-        retract(chaser(Name, CX, CY, Atk, Stun)),
-        assertz(chaser(Name, CX, CY, Atk, NewStun)),
-        format('~n[Enemy] ~w is stunned for ~w more turns.~n', [Name, NewStun])
-    ;   location(player, PX, PY),
-        (   CX =:= PX, CY =:= PY
-        ->  true % Already on top of player, combat logic handles this
-        ;   % Run BFS
-            (   solve_bfs([CX, CY], [PX, PY], Path)
-            ->  Path = [_, [NextX, NextY] | _], % First element is Start, second is Next
-                move_chaser(Name, NextX, NextY, Atk, Stun)
-            ;   format('~n[BFS] Chaser blocked or cannot find path.~n')
+    chaser(Name, CX, CY, Atk, Stun, Active),
+    
+    % Check activation condition if not active yet
+    (   Active =:= 0
+    ->  location(player, PX, PY),
+        (   (PX =:= 16, (PY =:= 7 ; PY =:= 8 ; PY =:= 9))
+        ->  NewActive = 1,
+            format('~n[BFS] Chaser AWAKENED! Hunting player...~n')
+        ;   NewActive = 0
+        ),
+        retract(chaser(Name, CX, CY, Atk, Stun, Active)),
+        assertz(chaser(Name, CX, CY, Atk, Stun, NewActive))
+    ;   NewActive = 1
+    ),
+    
+    (   NewActive =:= 1
+    ->  (   Stun > 0
+        ->  NewStun is Stun - 1,
+            retract(chaser(Name, CX, CY, Atk, Stun, NewActive)),
+            assertz(chaser(Name, CX, CY, Atk, NewStun, NewActive)),
+            format('~n[Enemy] ~w is stunned for ~w more turns.~n', [Name, NewStun])
+        ;   location(player, PX, PY),
+            (   CX =:= PX, CY =:= PY
+            ->  true % Already on top of player
+            ;   % Run BFS
+                (   solve_bfs([CX, CY], [PX, PY], Path)
+                ->  Path = [_, [NextX, NextY] | _],
+                    move_chaser(Name, NextX, NextY, Atk, Stun, NewActive)
+                ;   format('~n[BFS] Chaser blocked or cannot find path.~n')
+                )
             )
         )
+    ;   true % Inactive: Do nothing
     ).
 
-move_chaser(Name, X, Y, Atk, Stun) :-
-    retract(chaser(Name, _, _, _, _)),
-    assertz(chaser(Name, X, Y, Atk, Stun)),
+move_chaser(Name, X, Y, Atk, Stun, Active) :-
+    retract(chaser(Name, _, _, _, _, _)),
+    assertz(chaser(Name, X, Y, Atk, Stun, Active)),
     format('~n[BFS] Chaser moved to (~w, ~w).~n', [X, Y]).
 
 % --- BFS Implementation ---
