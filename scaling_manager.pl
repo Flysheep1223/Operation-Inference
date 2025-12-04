@@ -20,7 +20,8 @@ scale_enemies :-
     assert(scaling_level(NewLvl)),
     format('~n[WARNING] The enemies are growing stronger... (Turn ~w, Level ~w)~n', [Turn, NewLvl]),
     scale_chasers,
-    scale_walkers.
+    scale_walkers,
+    scale_timid_watched.
 
 scale_chasers :-
     findall([Name, X, Y, Atk, Stun], chaser(Name, X, Y, Atk, Stun), Chasers),
@@ -43,3 +44,14 @@ update_walkers([[Name, X, Y, Dx, Dy, Atk, Stun] | Rest]) :-
     retract(random_walker(Name, X, Y, Dx, Dy, Atk, Stun)),
     assertz(random_walker(Name, X, Y, Dx, Dy, NewAtk, Stun)),
     update_walkers(Rest).
+
+scale_timid_watched :-
+    findall([Name, X, Y, Atk, Stun], timid_watched(Name, X, Y, Atk, Stun), Bosses),
+    update_timid_watched(Bosses).
+
+update_timid_watched([]).
+update_timid_watched([[Name, X, Y, Atk, Stun] | Rest]) :-
+    NewAtk is floor(Atk * 1.1),
+    retract(timid_watched(Name, X, Y, Atk, Stun)),
+    assertz(timid_watched(Name, X, Y, NewAtk, Stun)),
+    update_timid_watched(Rest).
