@@ -34,9 +34,12 @@ map_segment([57, 14], [57, 20]).
 
 % Bottom-left room
 map_segment([16, 12], [4, 12]).
-map_segment([4, 12], [4, 4]).
 map_segment([4, 4], [16, 4]).
-map_segment([16, 4], [16, 12]).
+
+map_segment([4, 12], [4, 4]).
+% map_segment([16, 4], [16, 12]).
+map_segment([16, 4], [16, 6]).
+map_segment([16, 10], [16, 12]).
 
 % Middle-left room (Timid Watched Arena)
 map_segment([4, 22], [18, 22]).
