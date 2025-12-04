@@ -5,7 +5,7 @@
 :- [enemies/ai_manager].
 :- [enemies/bfs_chaser].
 :- [enemies/random_walker].
-:- [enemies/static_boss].
+:- [enemies/hidden_bee].
 :- [combat_logic].
 :- [items/equipments/sword].
 :- [items/equipments/knife].
@@ -213,7 +213,7 @@ print_map_char(X, Y, _, _) :-
     format(' R'), !.
 
 print_map_char(X, Y, _, _) :-
-    static_boss(_, BX, BY, _, _, _),
+    hidden_bee(_, BX, BY, _, _, _),
     number(BX), number(BY),
     BX =:= X, BY =:= Y,
     format(' B'), !.
@@ -226,7 +226,7 @@ print_map_char(X, Y, _, _) :-
 print_map_char(X, Y, _, _) :-
     equipment(Type, _, EX, EY),
     EX =:= X, EY =:= Y,
-    (Type = sword -> format(' S') ; format('K')), !.
+    (Type = sword -> format(' S') ; format(' K')), !.
 
 print_map_char(X, Y, _, _) :-
     get_health_zone_char(X, Y, Char),
@@ -246,7 +246,7 @@ print_map_char(_, _, _, _) :-
 
 is_wall(X, Y) :- wall(X, Y).
 
-get_health_zone_char(X, Y, 'H') :- health_zone(X, Y, _, _).
+get_health_zone_char(X, Y, ' H') :- health_zone(X, Y, _, _).
 
 % --- Main Loop ---
 start_game :-

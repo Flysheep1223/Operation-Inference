@@ -1,21 +1,21 @@
-:- dynamic static_boss/6. % static_boss(Name, X, Y, Atk, Stun, AttackCooldown)
+:- dynamic hidden_bee/6. % hidden_bee(Name, X, Y, Atk, Stun, AttackCooldown)
 :- dynamic bee_spike/2. % bee_spike(X, Y)
 :- use_module(ai_utils).
 
 % Initialize Hidden Bee
-init_static_boss :-
-    retractall(static_boss(_,_,_,_,_,_)),
+init_hidden_bee :-
+    retractall(hidden_bee(_,_,_,_,_,_)),
     retractall(bee_spike(_, _)),
-    assertz(static_boss('Hidden Bee', 25, 30, 30, 0, 0)).
+    assertz(hidden_bee('Hidden Bee', 25, 30, 30, 0, 0)).
 
-% Static Boss Logic - Does not move
-static_boss_tick :-
+% Hidden Bee Logic - Does not move
+hidden_bee_tick :-
     current_predicate(game_over/0), game_over, !.
-static_boss_tick :-
-    \+ static_boss(_, _, _, _, _, _), !.
+hidden_bee_tick :-
+    \+ hidden_bee(_, _, _, _, _, _), !.
 
-static_boss_tick :-
-    static_boss(Name, X, Y, Atk, Stun, Cooldown),
+hidden_bee_tick :-
+    hidden_bee(Name, X, Y, Atk, Stun, Cooldown),
     
     % 1. Handle Stun
     (   Stun > 0
@@ -33,8 +33,8 @@ static_boss_tick :-
         )
     ),
     
-    retract(static_boss(Name, X, Y, Atk, Stun, Cooldown)),
-    assertz(static_boss(Name, X, Y, Atk, NewStun, ResetCooldown)),
+    retract(hidden_bee(Name, X, Y, Atk, Stun, Cooldown)),
+    assertz(hidden_bee(Name, X, Y, Atk, NewStun, ResetCooldown)),
     
     % 3. Move existing spikes
     move_spikes, !.
