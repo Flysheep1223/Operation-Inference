@@ -34,7 +34,7 @@ random_walker_tick :-
             findall([NX, NY], (neighbor([X, Y], [NX, NY]), \+ wall_check([NX, NY])), AllNeighbors),
             
             % Filter out the tile we just came from to avoid jitter (Right-Left-Right),
-            % unless it's a dead end.
+            % unless it is a dead end.
             BackX is X - LastDx, BackY is Y - LastDy,
             exclude(is_pos(BackX, BackY), AllNeighbors, ForwardNeighbors),
             
