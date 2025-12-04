@@ -2,9 +2,9 @@ map_size(60, 34).
 exit_pos(50, 32).
 spawn_pos(30, 2). % Player start position
 
-% health_zone/4 defines recovery areas
-health_zone(46, 14, 56, 20).
-health_zone(6, 26, 16, 32).
+% health_zone/4 defines single-use health packages
+health_zone(46, 14, 56, 20). % Will spawn package at 46, 14
+health_zone(6, 26, 16, 32).  % Will spawn package at 6, 26
 
 % Map segments (Walls)
 % Above spawn point
