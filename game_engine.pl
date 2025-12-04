@@ -6,6 +6,7 @@
 :- [enemies/bfs_chaser].
 :- [enemies/random_walker].
 :- [enemies/hidden_bee].
+:- [enemies/timid_watched].
 :- [combat_logic].
 :- [items/equipments/sword].
 :- [items/equipments/knife].
@@ -213,6 +214,12 @@ print_map_char(X, Y, _, _) :-
     format(' R'), !.
 
 print_map_char(X, Y, _, _) :-
+    timid_watched(_, TX, TY, _, _),
+    number(TX), number(TY),
+    TX =:= X, TY =:= Y,
+    format(' T'), !.
+
+print_map_char(X, Y, _, _) :-
     hidden_bee(_, BX, BY, _, _, _),
     number(BX), number(BY),
     BX =:= X, BY =:= Y,
@@ -259,7 +266,7 @@ start_game :-
     retractall(turn_count(_)),
     retractall(scaling_level(_)),
     assert(health(100)),
-    assert(player_atk(10)),
+    assert(player_atk(100)),
     assert(turn_count(0)),
     assert(scaling_level(0)),
     (   spawn_pos(SX, SY) -> assert(location(player, SX, SY))
