@@ -3,7 +3,7 @@
 % Initialize enemies
 init_enemies :-
     init_chaser(10, 2),
-    init_random_walker(40, 10),
+    init_random_walker, % No parameters needed now
     init_hidden_bee,
     init_timid_watched.
 
