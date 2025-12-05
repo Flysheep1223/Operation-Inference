@@ -44,10 +44,10 @@ resolve_combat(_, Name, EnemyAtk, Stun, Type, EX, EY) :-
     (   PlayerAtk >= EnemyAtk
     ->  format('*** VICTORY! You defeated ~w! ***~n', [Name]),
         remove_enemy(Type, Name),
-        (Type = timid_watched -> absorb_power(EnemyAtk) ; true),
-        (Type = hidden_bee -> try_spawn_boss_loot(EX, EY) ; true),
+        (Type = timid_watched -> absorb_power(EnemyAtk), spawn_specific_loot(timid_watched) ; true),
+        (Type = hidden_bee -> try_spawn_boss_loot(EX, EY), spawn_specific_loot(hidden_bee) ; true),
         (Type = random_walker -> try_spawn_walker_loot(EX, EY) ; true),
-        (Type = chaser -> try_spawn_chaser_loot(EX, EY) ; true)
+        (Type = chaser -> try_spawn_chaser_loot(EX, EY), spawn_specific_loot(chaser) ; true)
     ;   % Player weaker
         Damage is EnemyAtk - PlayerAtk,
         format('*** DEFEAT! You took ~w damage! ***~n', [Damage]),
@@ -61,6 +61,18 @@ absorb_power(Amount) :-
     retract(player_atk(Atk)),
     assert(player_atk(NewAtk)),
     format('~n*** POWER ABSORPTION! Your Attack increased by ~w! (Current: ~w) ***~n', [Amount, NewAtk]).
+
+spawn_specific_loot(hidden_bee) :-
+    assert(treasure(diamond, 26, 12)),
+    format('~n*** LEGENDARY DROP! A Diamond appeared at [26, 12]! ***~n').
+
+spawn_specific_loot(timid_watched) :-
+    assert(treasure(diamond, 34, 12)),
+    format('~n*** LEGENDARY DROP! A Diamond appeared at [34, 12]! ***~n').
+
+spawn_specific_loot(chaser) :-
+    assert(treasure(diamond, 30, 20)),
+    format('~n*** LEGENDARY DROP! A Diamond appeared at [30, 20]! ***~n').
 
 try_spawn_boss_loot(X, Y) :-
     random_between(1, 100, Roll),
