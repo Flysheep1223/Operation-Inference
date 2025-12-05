@@ -44,7 +44,10 @@ resolve_combat(_, Name, EnemyAtk, Stun, Type, EX, EY) :-
     (   PlayerAtk >= EnemyAtk
     ->  format('*** VICTORY! You defeated ~w! ***~n', [Name]),
         remove_enemy(Type, Name),
-        (Type = timid_watched -> absorb_power(EnemyAtk) ; true)
+        (Type = timid_watched -> absorb_power(EnemyAtk) ; true),
+        (Type = hidden_bee -> try_spawn_boss_loot(EX, EY) ; true),
+        (Type = random_walker -> try_spawn_walker_loot(EX, EY) ; true),
+        (Type = chaser -> try_spawn_chaser_loot(EX, EY) ; true)
     ;   % Player weaker
         Damage is EnemyAtk - PlayerAtk,
         format('*** DEFEAT! You took ~w damage! ***~n', [Damage]),
@@ -58,6 +61,36 @@ absorb_power(Amount) :-
     retract(player_atk(Atk)),
     assert(player_atk(NewAtk)),
     format('~n*** POWER ABSORPTION! Your Attack increased by ~w! (Current: ~w) ***~n', [Amount, NewAtk]).
+
+try_spawn_boss_loot(X, Y) :-
+    random_between(1, 100, Roll),
+    (   Roll =< 5 -> SpawnType = diamond
+    ;   Roll =< 40 -> SpawnType = gold
+    ;   SpawnType = silver
+    ),
+    assert(treasure(SpawnType, X, Y)),
+    treasure_value(SpawnType, Value, ItemName),
+    format('~n*** BOSS DROP! ~w dropped ~w! (Value: ~w) ***~n', ['Hidden Bee', ItemName, Value]).
+
+try_spawn_walker_loot(X, Y) :-
+    random_between(1, 100, Roll),
+    (   Roll =< 1 -> SpawnType = diamond
+    ;   Roll =< 30 -> SpawnType = gold  % 1% (1) + 29% (30) = 30% threshold
+    ;   SpawnType = silver
+    ),
+    assert(treasure(SpawnType, X, Y)),
+    treasure_value(SpawnType, Value, ItemName),
+    format('~n*** ENEMY DROP! ~w dropped ~w! (Value: ~w) ***~n', ['Random Walker', ItemName, Value]).
+
+try_spawn_chaser_loot(X, Y) :-
+    random_between(1, 100, Roll),
+    (   Roll =< 5 -> SpawnType = diamond
+    ;   Roll =< 40 -> SpawnType = gold  % 5% + 35% = 40% threshold
+    ;   SpawnType = silver
+    ),
+    assert(treasure(SpawnType, X, Y)),
+    treasure_value(SpawnType, Value, ItemName),
+    format('~n*** ENEMY DROP! ~w dropped ~w! (Value: ~w) ***~n', ['BFS Chaser', ItemName, Value]).
 
 remove_enemy(chaser, Name) :-
     retract(chaser(Name, _, _, _, _, _)),
