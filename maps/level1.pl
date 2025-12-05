@@ -4,7 +4,19 @@ spawn_pos(30, 2). % Player start position
 
 % health_zone/4 defines single-use health packages
 % health_zone(46, 14, 56, 20). % Will spawn package at 46, 14
-health_zone(6, 26).  % Will spawn package at 6, 26
+% health_zone(6, 26).  % Will spawn package at 6, 26
+
+% Random health spawn area: health_spawn_area(XMin, XMax, YMin, YMax, Count)
+health_spawn_area(5, 17, 25, 31, 4).
+health_spawn_area(46, 57, 23, 25, 2).
+
+% Random equipment spawn area: equipment_spawn_area(Type, XMin, XMax, YMin, YMax, Count)
+equipment_spawn_area(sword, 0, 23, 23, 34, 1).
+equipment_spawn_area(knife, 0, 23, 23, 34, 2).
+equipment_spawn_area(sword, 57, 59, 31, 33, 1).
+equipment_spawn_area(knife, 51, 59, 27, 29, 2).
+equipment_spawn_area(sword, 42, 59, 0, 22, 2).
+equipment_spawn_area(knife, 42, 59, 0, 22, 4).
 
 % Map segments (Walls)
 % Above spawn point
@@ -66,7 +78,10 @@ map_segment([24, 26], [36, 26]).
 map_segment([56, 34], [56, 30]).
 map_segment([56, 30], [50, 30]).
 map_segment([50, 30], [50, 26]).
-map_segment([50, 26], [60, 26]).
+
+% map_segment([50, 26], [60, 26]).
+map_segment([50, 26], [54, 26]).
+map_segment([58, 26], [60, 26]).
 
 % Around
 map_segment([0, 0], [0, 34]).
