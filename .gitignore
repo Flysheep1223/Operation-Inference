@@ -1,0 +1,14 @@
+# Runtime generated PDDL problems
+pddl/problem.pddl
+
+# Prolog temporary files
+*.plt
+*.qlf
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE specific
+.vscode/
+.idea/
