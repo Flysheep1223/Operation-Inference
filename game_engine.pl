@@ -378,10 +378,15 @@ get_action(Input) :-
     format('~w~n', [Input]).
 
 handle_input('w') :- move(up).
+handle_input('W') :- move(up).
 handle_input('s') :- move(down).
+handle_input('S') :- move(down).
 handle_input('a') :- move(left).
+handle_input('A') :- move(left).
 handle_input('d') :- move(right).
+handle_input('D') :- move(right).
 handle_input('q') :- format('~nQuitting...~n'), assert(game_over).
+handle_input('Q') :- format('~nQuitting...~n'), assert(game_over).
 handle_input(_) :- format('~nUnknown command.~n').
 
 % --- New Spike Check ---
