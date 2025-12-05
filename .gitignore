@@ -1,6 +1,3 @@
-# Runtime generated PDDL problems
-pddl/problem.pddl
-
 # Prolog temporary files
 *.plt
 *.qlf
