@@ -1,5 +1,5 @@
 :- dynamic wall/2, location/3, game_over/0, health/1, player_atk/1, turn_count/1, scaling_level/1, score/1.
-:- dynamic map_size/2, exit_pos/2, health_zone/2, map_segment/2, spawn_pos/2, portal_pos/3.
+:- dynamic map_size/2, exit_pos/2, health_zone/2, map_segment/2, spawn_pos/2, portal_pos/3, health_spawn_area/5, equipment_spawn_area/6.
 :- dynamic equipment/4, treasure/3.
 :- use_module(library(readutil)).
 :- [enemies/ai_manager].
@@ -23,6 +23,8 @@ load_level(LevelFile) :-
     retractall(map_size(_, _)),
     retractall(exit_pos(_, _)),
     retractall(health_zone(_, _)),
+    retractall(health_spawn_area(_, _, _, _, _)),
+    retractall(equipment_spawn_area(_, _, _, _, _, _)),
     retractall(map_segment(_, _)),
     retractall(spawn_pos(_, _)),
     retractall(portal_pos(_, _, _)),
@@ -34,7 +36,25 @@ load_level(LevelFile) :-
 
 init_healthy_packages :-
     findall([X, Y], health_zone(X, Y), Zones),
-    spawn_packages_from_zones(Zones).
+    spawn_packages_from_zones(Zones),
+    spawn_random_packages_from_areas.
+
+spawn_random_packages_from_areas :-
+    health_spawn_area(XMin, XMax, YMin, YMax, Count),
+    spawn_n_packages(Count, XMin, XMax, YMin, YMax),
+    fail.
+spawn_random_packages_from_areas.
+
+spawn_n_packages(0, _, _, _, _) :- !.
+spawn_n_packages(N, XMin, XMax, YMin, YMax) :-
+    random_between(XMin, XMax, X),
+    random_between(YMin, YMax, Y),
+    (   \+ wall(X, Y), \+ healthy_package(X, Y), \+ location(player, X, Y)
+    ->  spawn_healthy_package(X, Y),
+        N1 is N - 1,
+        spawn_n_packages(N1, XMin, XMax, YMin, YMax)
+    ;   spawn_n_packages(N, XMin, XMax, YMin, YMax) % Retry
+    ).
 
 spawn_packages_from_zones([]).
 spawn_packages_from_zones([[X, Y] | Rest]) :-
