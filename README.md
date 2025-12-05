@@ -25,9 +25,10 @@
   - **8邻域检测**: 自动检测玩家周围 8 格内的敌人。
   - **数值对抗**: 若 `玩家ATK >= 敌人ATK` 则消灭敌人；否则玩家扣除HP并眩晕敌人。
   - **战利品掉落**: 击败特定敌人有概率掉落宝藏：
-    - **Hidden Bee (B)**: 5% Diamond, 35% Gold, 60% Silver。
-    - **BFS Chaser (C)**: 5% Diamond, 35% Gold, 60% Silver。
-    - **Random Walker (R)**: 1% Diamond, 29% Gold, 70% Silver。
+    - **Hidden Bee (B)**: 双重掉落 —— 必定掉落 Diamond (O) 于 [26, 12] + 随机原版掉落(5% Diamond, 35% Gold, 60% Silver)。
+    - **BFS Chaser (C)**: 双重掉落 —— 必定掉落 Diamond (O) 于 [30, 20] + 随机原版掉落(5% Diamond, 35% Gold, 60% Silver)。
+    - **Timid Watched (T)**: 必定掉落 Diamond (O) 于 [34, 12] (无随机掉落，维持吸取攻击力设定)。
+    - **Random Walker (R)**: 随机掉落 (1% Diamond, 29% Gold, 70% Silver)。
 
 **4. `scaling_manager.pl` (动态难度管理)**
 - **功能**: 控制游戏随时间推移的难度增长。
@@ -75,7 +76,7 @@
   - **生成策略**: 
     - **急救包 (H)**: 优先生成，依据 `health_spawn_area` 配置。
     - **装备 (S/K)**: 随后生成，依据 `equipment_spawn_area` 配置，并自动避开急救包和敌人。
-    - **宝藏 (O/G/V)**: 最后生成，避开所有已存在的实体。
+    - **宝藏 (O/G/V)**: 最后生成，避开所有已存在的实体，且不会生成在 Boss 房间禁区 `[24,14]-[36,22]` 内。
   - **拾取逻辑**: 玩家重合时触发效果，装备增加ATK，宝藏增加Score。
 
 **15. `items/equipments/sword.pl` (铁剑 - 代号 'S')**
@@ -116,3 +117,48 @@
 - **Q**: 退出游戏。
 - **tp(X, Y)**: (调试) 传送到坐标 (X, Y)。
 - **dehealthy(X)**: (调试) 立即扣除 X 点生命值。
+
+## 📊 游戏数值与配置速查
+
+为了方便调试和平衡性调整，以下列出了游戏中所有的核心数值及其在源码中的定义位置。
+
+### 🧑 玩家初始数值
+- **初始 HP**: 100
+  - 📍 `game_engine.pl:346` (`assert(health(100))`)
+- **初始 ATK**: 15
+  - 📍 `game_engine.pl:347` (`assert(player_atk(15))`)
+
+### 🎒 物品数值
+- **装备**
+  - **Sword (S)**: ATK +10
+    - 📍 `items/equipments/sword.pl:5` (`player_atk(CurrentAtk), NewAtk is CurrentAtk + 10`)
+  - **Knife (K)**: ATK +5
+    - 📍 `items/equipments/knife.pl:5` (`player_atk(CurrentAtk), NewAtk is CurrentAtk + 5`)
+- **消耗品**
+  - **Healthy Package (H)**: HP +40
+    - 📍 `items/tools/heathy_package.pl:7` (`increase_health(40)`)
+- **宝藏 (Score)**
+  - **Diamond (O)**: +1000 分
+    - 📍 `items/treasures/diamond.pl:1` (`treasure_value(diamond, 1000, 'Diamond')`)
+  - **Gold (G)**: +500 分
+    - 📍 `items/treasures/gold.pl:1` (`treasure_value(gold, 500, 'Gold')`)
+  - **Silver (V)**: +200 分
+    - 📍 `items/treasures/silver.pl:1` (`treasure_value(silver, 200, 'Silver')`)
+
+### 🤖 敌人数值
+| 敌人代号 | 名称 | 初始 ATK | 初始 Stun | 定义文件 |
+| :--- | :--- | :--- | :--- | :--- |
+| **C** | BFS Chaser | 15 | 0 | `enemies/bfs_chaser.pl:12` |
+| **R** | Random Walker | 10 | 0 | `enemies/random_walker.pl:10` |
+| **B** | Hidden Bee | 20 | 0 | `enemies/hidden_bee.pl:10` |
+| **T** | Timid Watched | 100 | 0 | `enemies/timid_watched.pl:10` |
+| **I** | Smart Thief | 15（无法触发战斗） | 0 | `enemies/smart_thief.pl:18` |
+
+### ⚙️ 游戏机制数值
+- **难度动态提升 (Scaling)**
+  - **触发周期**: 每 10 回合
+  - **提升幅度**: 敌人 ATK +10%
+  - 📍 `scaling_manager.pl:5-12` (`0 is Turn mod 10`, `NewAtk is round(Atk * 1.1)`)
+- **尖刺伤害**
+  - **伤害值**: 5 HP
+  - 📍 `game_engine.pl:390` (`decrease_health(5)`)
