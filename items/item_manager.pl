@@ -31,9 +31,15 @@ spawn_n_equipments(Type, N, XMin, XMax, YMin, YMax) :-
     ).
 
 spawn_treasures :-
-    spawn_random_treasure(diamond),
-    spawn_random_treasure(gold),
-    spawn_random_treasure(silver).
+    spawn_n_treasures(diamond, 1),
+    spawn_n_treasures(gold, 3),
+    spawn_n_treasures(silver, 6).
+
+spawn_n_treasures(_, 0) :- !.
+spawn_n_treasures(Type, N) :-
+    spawn_random_treasure(Type),
+    N1 is N - 1,
+    spawn_n_treasures(Type, N1).
 
 spawn_random_treasure(Type) :-
     map_size(MaxX, MaxY),
@@ -46,10 +52,15 @@ spawn_random_treasure(Type) :-
         \+ healthy_package(X, Y),
         \+ random_walker(_, X, Y, _, _, _, _),
         \+ exit_pos(X, Y),
-        \+ portal_pos(X, Y, _)
+        \+ portal_pos(X, Y, _),
+        \+ in_excluded_zone(X, Y)
     ->  assert(treasure(Type, X, Y))
     ;   spawn_random_treasure(Type)
     ).
+
+in_excluded_zone(X, Y) :-
+    X >= 24, X =< 36,
+    Y >= 10, Y =< 22.
 
 % Check for item pickup
 check_items(X, Y) :-
