@@ -110,11 +110,9 @@ def main():
         # 2. 使用A*求解（内置算法+启发式）
         plan = solve_with_astar(task)
         
-        # 3. 输出结果（与原脚本格式兼容）
         if plan:
             # 提取第一个动作
             first_action = plan[0]
-            # pyperplan 2.1 Operator.name 已经是格式化的字符串，如 "(move c_0_0 c_0_1)"
             print(first_action.name)
         else:
             print("; No plan found")
