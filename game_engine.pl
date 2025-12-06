@@ -168,7 +168,39 @@ end_game_low_health :-
     end_game.
 
 end_game :-
-    format('~nType "start." to play again.~n').
+    nl,
+    format('Restart game? (Y/N): '),
+    get_single_char(Code),
+    char_code(Char, Code),
+    nl,
+    handle_endgame_choice(Char).
+
+handle_endgame_choice('y') :-
+    restart_game.
+handle_endgame_choice('Y') :-
+    restart_game.
+
+handle_endgame_choice('n') :-
+    quit_game.
+handle_endgame_choice('N') :-
+    quit_game.
+
+handle_endgame_choice(_) :-
+    format('Please enter Y or N.~n'),
+    end_game.
+
+restart_game :-
+    format('~nRestarting game...~n'),
+    retractall(game_over),
+    start_game.
+
+quit_game :-
+    format('~nThanks for playing! Goodbye.~n'),
+    flush_output,
+    sleep(1),
+    assert(game_over),
+    !,
+    halt.
 
 % --- Input Loop ---
 move(Direction) :-
