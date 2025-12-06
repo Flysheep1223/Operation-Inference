@@ -1,0 +1,80 @@
+import sys
+import re
+import heapq
+
+def parse_pddl(domain_file, problem_file):
+    # Simplified parser for our specific grid world structure
+    # In a real scenario, use a robust PDDL parser library
+    
+    with open(problem_file, 'r') as f:
+        content = f.read()
+    
+    # Extract Init State
+    init_matches = re.findall(r'\(at (c_\d+_\d+)\)', content)
+    start_node = init_matches[0] if init_matches else None
+    
+    # Extract Goal
+    goal_matches = re.findall(r'\(at (c_\d+_\d+)\)', content.split('(:goal')[1])
+    goal_node = goal_matches[0] if goal_matches else None
+    
+    # Extract Connections
+    connections = {}
+    for match in re.findall(r'\(connected (c_\d+_\d+) (c_\d+_\d+)\)', content):
+        u, v = match
+        if u not in connections: connections[u] = []
+        connections[u].append(v)
+        
+    return start_node, goal_node, connections
+
+def solve(start, goal, graph):
+    if not start or not goal:
+        return []
+    
+    queue = [(0, start, [])] # priority, current, path
+    visited = set()
+    
+    while queue:
+        (cost, current, path) = heapq.heappop(queue)
+        
+        if current in visited:
+            continue
+        visited.add(current)
+        
+        if current == goal:
+            return path
+        
+        if current in graph:
+            for neighbor in graph[current]:
+                if neighbor not in visited:
+                    # Manhattan heuristic
+                    cx, cy = map(int, current.split('_')[1:])
+                    nx, ny = map(int, neighbor.split('_')[1:])
+                    gx, gy = map(int, goal.split('_')[1:])
+                    
+                    # Cost is path length + heuristic
+                    new_cost = len(path) + 1 + abs(nx - gx) + abs(ny - gy)
+                    heapq.heappush(queue, (new_cost, neighbor, path + [neighbor]))
+                    
+    return []
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python pddl_solver.py domain.pddl problem.pddl")
+        sys.exit(1)
+        
+    domain_file = sys.argv[1]
+    problem_file = sys.argv[2]
+    
+    try:
+        start, goal, connections = parse_pddl(domain_file, problem_file)
+        path = solve(start, goal, connections)
+        
+        # Output format: (move from to)
+        if path:
+            next_step = path[0]
+            print(f"(move {start} {next_step})")
+        else:
+            print("; No plan found")
+            
+    except Exception as e:
+        print(f"; Error: {e}")
