@@ -1,80 +1,127 @@
 import sys
+import argparse
+import tempfile
+import os
 import re
-import heapq
 
-def parse_pddl(domain_file, problem_file):
-    # Simplified parser for our specific grid world structure
-    # In a real scenario, use a robust PDDL parser library
-    
+# 导入Pyperplan核心组件（2.x版本稳定API）
+
+from pyperplan.pddl.parser import Parser
+from pyperplan.search.a_star import astar_search
+from pyperplan.heuristics.relaxation import hFFHeuristic
+from pyperplan.grounding import ground
+
+
+def extract_objects_from_problem(problem_file):
+    """从problem文件的init和goal中提取所有位置对象"""
     with open(problem_file, 'r') as f:
         content = f.read()
     
-    # Extract Init State
-    init_matches = re.findall(r'\(at (c_\d+_\d+)\)', content)
-    start_node = init_matches[0] if init_matches else None
+    objects = set()
     
-    # Extract Goal
-    goal_matches = re.findall(r'\(at (c_\d+_\d+)\)', content.split('(:goal')[1])
-    goal_node = goal_matches[0] if goal_matches else None
+    # 从init部分提取
+    init_match = re.search(r'\(:init\s*(.*?)\)\s*\(:goal', content, re.DOTALL)
+    if init_match:
+        objects.update(re.findall(r'\b(c_\d+_\d+)\b', init_match.group(1)))
     
-    # Extract Connections
-    connections = {}
-    for match in re.findall(r'\(connected (c_\d+_\d+) (c_\d+_\d+)\)', content):
-        u, v = match
-        if u not in connections: connections[u] = []
-        connections[u].append(v)
-        
-    return start_node, goal_node, connections
+    # 从goal部分提取
+    goal_match = re.search(r'\(:goal\s*(.*?)\)\s*\)\s*$', content, re.DOTALL)
+    if goal_match:
+        objects.update(re.findall(r'\b(c_\d+_\d+)\b', goal_match.group(1)))
+    
+    return sorted(list(objects))
 
-def solve(start, goal, graph):
-    if not start or not goal:
-        return []
+def parse_and_ground(domain_file, problem_file):
+    """
+    解析PDDL文件并ground问题
+    自动处理空对象声明问题
+    """
+    # 读取problem文件
+    with open(problem_file, 'r') as f:
+        problem_content = f.read()
     
-    queue = [(0, start, [])] # priority, current, path
-    visited = set()
+    # 处理空对象声明（你的problem.pddl中objects为空）
+    objects_empty = re.search(r'\(:objects\s*\)', problem_content)
+    temp_problem_file = None
     
-    while queue:
-        (cost, current, path) = heapq.heappop(queue)
+    if objects_empty:
+        object_names = extract_objects_from_problem(problem_file)
+        if not object_names:
+            raise ValueError("No objects found in problem file!")
         
-        if current in visited:
-            continue
-        visited.add(current)
+        objects_decl = ' '.join(object_names) + ' - location'
+        modified_content = re.sub(
+            r'\(:objects\s*\)',
+            f'(:objects\n    {objects_decl}\n  )',
+            problem_content
+        )
         
-        if current == goal:
-            return path
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.pddl', delete=False) as f:
+            f.write(modified_content)
+            temp_problem_file = f.name
         
-        if current in graph:
-            for neighbor in graph[current]:
-                if neighbor not in visited:
-                    # Manhattan heuristic
-                    cx, cy = map(int, current.split('_')[1:])
-                    nx, ny = map(int, neighbor.split('_')[1:])
-                    gx, gy = map(int, goal.split('_')[1:])
-                    
-                    # Cost is path length + heuristic
-                    new_cost = len(path) + 1 + abs(nx - gx) + abs(ny - gy)
-                    heapq.heappush(queue, (new_cost, neighbor, path + [neighbor]))
-                    
-    return []
-
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python pddl_solver.py domain.pddl problem.pddl")
-        sys.exit(1)
-        
-    domain_file = sys.argv[1]
-    problem_file = sys.argv[2]
+        problem_path = temp_problem_file
+    else:
+        problem_path = problem_file
     
     try:
-        start, goal, connections = parse_pddl(domain_file, problem_file)
-        path = solve(start, goal, connections)
+        # 使用Parser解析（最稳定的API）
+        parser = Parser(domain_file, problem_path)
+        domain = parser.parse_domain()
+        problem = parser.parse_problem(domain)
         
-        # Output format: (move from to)
-        if path:
-            next_step = path[0]
-            print(f"(move {start} {next_step})")
+        # Ground问题（实例化所有动作）
+        task = ground(problem)
+        
+        # 清理临时文件
+        if temp_problem_file and os.path.exists(temp_problem_file):
+            os.unlink(temp_problem_file)
+            
+    except Exception as e:
+        if temp_problem_file and os.path.exists(temp_problem_file):
+            os.unlink(temp_problem_file)
+        raise e
+    
+    return task
+
+def solve_with_astar(task):
+    """
+    使用Pyperplan内置A* + hFF启发式求解
+    hFF是FF规划器的快速前向启发式，对网格导航问题非常有效
+    """
+    heuristic = hFFHeuristic(task)
+    plan = astar_search(task, heuristic)
+    return plan
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='PDDL grid world solver using pyperplan A*',
+        epilog="Example: python pddl_solver.py domain.pddl problem.pddl"
+    )
+    parser.add_argument('domain', help='PDDL domain file')
+    parser.add_argument('problem', help='PDDL problem file')
+    
+    args = parser.parse_args()
+    
+    try:
+        # 1. 解析并ground问题
+        task = parse_and_ground(args.domain, args.problem)
+        
+        # 2. 使用A*求解（内置算法+启发式）
+        plan = solve_with_astar(task)
+        
+        # 3. 输出结果（与原脚本格式兼容）
+        if plan:
+            # 提取第一个动作
+            first_action = plan[0]
+            # pyperplan 2.1 Operator.name 已经是格式化的字符串，如 "(move c_0_0 c_0_1)"
+            print(first_action.name)
         else:
             print("; No plan found")
             
     except Exception as e:
-        print(f"; Error: {e}")
+        print(f"; Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
